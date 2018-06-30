@@ -37,12 +37,13 @@ for trial in range(MAX_TRIALS): # 200 trials per worker
 
     model.reset()
     obs = model.env.reset() # pixels
+    print( obs.shape )
 
     for frame in range(MAX_FRAMES):
-      if render_mode:
-        model.env.render("human")
-      else:
-        model.env.render("rgb_array")
+      #if render_mode:
+      #  model.env.render("human")
+      #else:
+      #  model.env.render("rgb_array")
 
       recording_obs.append(obs)
 

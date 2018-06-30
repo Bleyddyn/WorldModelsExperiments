@@ -86,7 +86,9 @@ class Model:
 
   def encode_obs(self, obs):
     # convert raw obs to z, mu, logvar
+    #print( "Before: {}".format( obs.shape ) )
     result = np.copy(obs).astype(np.float)/255.0
+    #print( "After: {}".format( obs.shape ) )
     result = result.reshape(1, 64, 64, 3)
     mu, logvar = self.vae.encode_mu_logvar(result)
     mu = mu[0]

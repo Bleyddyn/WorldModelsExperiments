@@ -20,8 +20,18 @@ class CarRacingWrapper(CarRacing):
     self.full_episode = full_episode
     self.observation_space = Box(low=0, high=255, shape=(SCREEN_X, SCREEN_Y, 3)) # , dtype=np.uint8
 
+  def reset(self):
+    obs = super(CarRacingWrapper, self).reset()
+    return _process_frame(obs)
+
   def _step(self, action):
     obs, reward, done, _ = super(CarRacingWrapper, self)._step(action)
+    if self.full_episode:
+      return _process_frame(obs), reward, False, {}
+    return _process_frame(obs), reward, done, {}
+
+  def step(self, action):
+    obs, reward, done, _ = super(CarRacingWrapper, self).step(action)
     if self.full_episode:
       return _process_frame(obs), reward, False, {}
     return _process_frame(obs), reward, done, {}
@@ -30,7 +40,7 @@ def make_env(env_name, seed=-1, render_mode=False, full_episode=False):
   env = CarRacingWrapper(full_episode=full_episode)
   if (seed >= 0):
     env.seed(seed)
-  '''
+  """
   print("environment details")
   print("env.action_space", env.action_space)
   print("high, low", env.action_space.high, env.action_space.low)
@@ -38,7 +48,7 @@ def make_env(env_name, seed=-1, render_mode=False, full_episode=False):
   print("env.observation_space", env.observation_space)
   print("high, low", env.observation_space.high, env.observation_space.low)
   assert False
-  '''
+  """
   return env
 
 # from https://github.com/openai/gym/blob/master/gym/envs/box2d/car_racing.py
