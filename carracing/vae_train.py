@@ -3,6 +3,7 @@ Train VAE model on data created using extract.py
 final model saved into tf_vae/vae.json
 '''
 
+import sys
 import os
 os.environ["CUDA_VISIBLE_DEVICES"]="0" # can just override for multi-gpu systems
 
@@ -12,6 +13,7 @@ import numpy as np
 np.set_printoptions(precision=4, edgeitems=6, linewidth=100, suppress=True)
 
 from vae.vae import ConvVAE, reset_graph
+from load_data import VaeDataGenerator
 
 # Hyperparameters for ConvVAE
 z_size=32
@@ -20,7 +22,7 @@ learning_rate=0.0001
 kl_tolerance=0.5
 
 # Parameters for training
-NUM_EPOCH = 10
+NUM_EPOCH = 100
 DATA_DIR = "record"
 
 model_save_path = "tf_vae"
@@ -60,14 +62,17 @@ def create_dataset(filelist, N=10000, M=1000): # N is 10000 episodes, M is numbe
 # load dataset from record/*. only use first 10K, sorted by filename.
 filelist = os.listdir(DATA_DIR)
 filelist.sort()
-filelist = filelist[0:10000]
-print("check total number of images:", count_length_of_filelist(filelist))
+#filelist = filelist[0:10000]
+#print("check total number of images:", count_length_of_filelist(filelist))
 
-dataset = create_dataset(filelist, N=60)
+#dataset = create_dataset(filelist, N=60)
 
 # split into batches:
-total_length = len(dataset)
-num_batches = int(np.floor(total_length/batch_size))
+#total_length = len(dataset)
+#num_batches = int(np.floor(total_length/batch_size))
+gen = VaeDataGenerator( filelist, batch_size=batch_size, shuffle=True, max_load=10000 )
+num_batches = len(gen)
+
 print("num_batches", num_batches)
 
 reset_graph()
@@ -80,25 +85,31 @@ vae = ConvVAE(z_size=z_size,
               reuse=False,
               gpu_mode=True)
 
+
 # train loop:
 print("train", "step", "loss", "recon_loss", "kl_loss")
 for epoch in range(NUM_EPOCH):
-  np.random.shuffle(dataset)
-  for idx in range(num_batches):
-    batch = dataset[idx*batch_size:(idx+1)*batch_size]
+    for idx in range(num_batches):
+        batch = gen[idx]
+        #print( "Batch {}: {}".format( idx, batch.shape ), end='\r' )
+        #sys.stdout.flush()
+        if batch.shape[0] == 0:
+            continue
 
-    obs = batch.astype(np.float)/255.0
+        obs = batch.astype(np.float)/255.0
 
-    feed = {vae.x: obs,}
+        feed = {vae.x: obs,}
 
-    (train_loss, r_loss, kl_loss, train_step, _) = vae.sess.run([
-      vae.loss, vae.r_loss, vae.kl_loss, vae.global_step, vae.train_op
-    ], feed)
-  
-    if ((train_step+1) % 500 == 0):
-      print("step", (train_step+1), train_loss, r_loss, kl_loss)
-    if ((train_step+1) % 5000 == 0):
-      vae.save_json("tf_vae/vae.json")
+        (train_loss, r_loss, kl_loss, train_step, _) = vae.sess.run([
+          vae.loss, vae.r_loss, vae.kl_loss, vae.global_step, vae.train_op
+        ], feed)
+      
+        if ((train_step+1) % 500 == 0):
+          print("step", (train_step+1), train_loss, r_loss, kl_loss)
+        if ((train_step+1) % 5000 == 0):
+          vae.save_json("tf_vae/vae.json")
+    print( "  end Epoch {}".format( epoch ) )
+    gen.on_epoch_end()
 
 # finished, final model:
 vae.save_json("tf_vae/vae.json")

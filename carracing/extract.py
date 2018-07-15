@@ -9,8 +9,8 @@ import gym
 
 from model import make_model
 
-MAX_FRAMES = 1000 # max length of carracing
-MAX_TRIALS = 200 # just use this to extract one trial. 
+MAX_FRAMES = 400 # max length of carracing
+MAX_TRIALS = 40 # just use this to extract one trial. 
 
 render_mode = False # for debugging.
 
@@ -40,10 +40,10 @@ for trial in range(MAX_TRIALS): # 200 trials per worker
     print( obs.shape )
 
     for frame in range(MAX_FRAMES):
-      #if render_mode:
-      #  model.env.render("human")
-      #else:
-      #  model.env.render("rgb_array")
+      if render_mode:
+        model.env.render("human")
+      else:
+        model.env.render("rgb_array")
 
       recording_obs.append(obs)
 

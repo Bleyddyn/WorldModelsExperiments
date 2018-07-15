@@ -135,7 +135,7 @@ def sample_vae2(args):
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
 
-    #plt.savefig( image_path )
+    plt.savefig( "samples_vae.png" )
     plt.show()
 
 
