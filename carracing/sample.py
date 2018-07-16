@@ -152,11 +152,22 @@ def main(args):
             sample_vae(args)
         elif model_source == "hardmaru":
             sample_vae2(args)
+    if args.series:
+        if model_source == "AppliedDataSciencePartners":
+            pass
+        elif model_source == "hardmaru":
+            data = np.load('series/series.npz')
+            data.keys()
+            print( "Series data:" )
+            print( "  Actions: {} {}".format( data['action'].shape, len(data['action']) ) )
+            print( "       mu: {} {}".format( data['mu'].shape, len(data['mu']) ) )
+            print( "   logvar: {} {}".format( data['logvar'].shape, len(data['logvar']) ) )
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description=('Sample one or more stages of training'))
   parser.add_argument('--data', action="store_true", default=False, help='Generate image samples from generated data')
   parser.add_argument('--vae', action="store_true", default=False, help='Generate image samples from a trained VAE')
+  parser.add_argument('--series', action="store_true", default=False, help='Output stats from the series data')
   parser.add_argument('--count', type=int, default=10, help='How many samples to generate')
 
   args = parser.parse_args()
