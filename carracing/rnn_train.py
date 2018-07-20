@@ -36,7 +36,7 @@ def random_batch():
 
 def default_hps():
   return HyperParams(num_steps=4000,
-                     max_seq_len=999, # train on sequences of 1000 (so 999 + teacher forcing shift)
+                     max_seq_len=399, # train on sequences of 1000 (so 999 + teacher forcing shift)
                      input_seq_width=35,    # width of our data (32 + 3 actions)
                      output_seq_width=32,    # width of our data is 32
                      rnn_size=256,    # number of rnn cells

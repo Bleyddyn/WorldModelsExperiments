@@ -59,12 +59,21 @@ filelist = os.listdir(DATA_DIR)
 filelist.sort()
 #filelist = filelist[0:10000]
 
+size = 0
+
 # Need to rewrite this so it loads one file at a time, recreating ConvVAE with a batch_size from the loaded data
 action_dataset = []
 mu_dataset = []
 logvar_dataset = []
 for afile in filelist:
     dataset, actions = load_raw_data_list([afile])
+    if size == 0:
+        size = len(dataset)
+        print( "Dataset size: {}".format( size ) )
+    elif size != len(dataset):
+        print( "Invalid sized dataset: {} at {}".format( len(dataset), afile ) )
+        continue
+
     batch_size = len(dataset)
     print( "{}: {} {}".format( afile, dataset.shape, actions.shape ) )
 
