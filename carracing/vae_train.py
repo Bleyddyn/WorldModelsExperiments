@@ -14,20 +14,7 @@ np.set_printoptions(precision=4, edgeitems=6, linewidth=100, suppress=True)
 
 from vae.vae import ConvVAE, reset_graph
 from load_data import VaeDataGenerator
-
-# Hyperparameters for ConvVAE
-z_size=32
-batch_size=100
-learning_rate=0.0001
-kl_tolerance=0.5
-
-# Parameters for training
-NUM_EPOCH = 100
-DATA_DIR = "record"
-
-model_save_path = "tf_vae"
-if not os.path.exists(model_save_path):
-  os.makedirs(model_save_path)
+from load_drives import DriveDataGenerator
 
 def count_length_of_filelist(filelist):
   # although this is inefficient, much faster than doing np.concatenate([giant list of blobs])..
@@ -59,57 +46,90 @@ def create_dataset(filelist, N=10000, M=1000): # N is 10000 episodes, M is numbe
       print("loading file", i+1)
   return data
 
+def main(args):
+    env = "malpi"
+# env = "carracing"
+
+# Hyperparameters for ConvVAE
+    z_size=32
+    batch_size=100
+    learning_rate=0.0001
+    kl_tolerance=0.5
+
+# Parameters for training
+    NUM_EPOCH = 100
+    DATA_DIR = "record"
+
+    model_save_path = "tf_vae"
+    if not os.path.exists(model_save_path):
+      os.makedirs(model_save_path)
+
+    if "carracing" == env:
 # load dataset from record/*. only use first 10K, sorted by filename.
-filelist = os.listdir(DATA_DIR)
-filelist.sort()
-#filelist = filelist[0:10000]
-#print("check total number of images:", count_length_of_filelist(filelist))
+        filelist = os.listdir(DATA_DIR)
+        filelist.sort()
+        #filelist = filelist[0:10000]
+        #print("check total number of images:", count_length_of_filelist(filelist))
 
-#dataset = create_dataset(filelist, N=60)
+        gen = VaeDataGenerator( filelist, batch_size=batch_size, shuffle=True, max_load=10000 )
+    elif "malpi" == env:
+        gen = DriveDataGenerator(args.dirs, image_size=(64,64), batch_size=batch_size, shuffle=True, max_load=10000, images_only=True )
+        
+    num_batches = len(gen)
+    print("num_batches", num_batches)
 
-# split into batches:
-#total_length = len(dataset)
-#num_batches = int(np.floor(total_length/batch_size))
-gen = VaeDataGenerator( filelist, batch_size=batch_size, shuffle=True, max_load=10000 )
-num_batches = len(gen)
+    reset_graph()
 
-print("num_batches", num_batches)
-
-reset_graph()
-
-vae = ConvVAE(z_size=z_size,
-              batch_size=batch_size,
-              learning_rate=learning_rate,
-              kl_tolerance=kl_tolerance,
-              is_training=True,
-              reuse=False,
-              gpu_mode=True)
+    vae = ConvVAE(z_size=z_size,
+                  batch_size=batch_size,
+                  learning_rate=learning_rate,
+                  kl_tolerance=kl_tolerance,
+                  is_training=True,
+                  reuse=False,
+                  gpu_mode=True)
 
 
 # train loop:
-print("train", "step", "loss", "recon_loss", "kl_loss")
-for epoch in range(NUM_EPOCH):
-    for idx in range(num_batches):
-        batch = gen[idx]
-        #print( "Batch {}: {}".format( idx, batch.shape ), end='\r' )
-        #sys.stdout.flush()
-        if batch.shape[0] == 0:
-            continue
+    print("train", "step", "loss", "recon_loss", "kl_loss")
+    for epoch in range(NUM_EPOCH):
+        for idx in range(num_batches):
+            batch = gen[idx]
+            #print( "Batch {}: {}".format( idx, batch.shape ), end='\r' )
+            #sys.stdout.flush()
+            if batch.shape[0] == 0:
+                continue
 
-        obs = batch.astype(np.float)/255.0
+            obs = batch.astype(np.float)/255.0
 
-        feed = {vae.x: obs,}
+            feed = {vae.x: obs,}
 
-        (train_loss, r_loss, kl_loss, train_step, _) = vae.sess.run([
-          vae.loss, vae.r_loss, vae.kl_loss, vae.global_step, vae.train_op
-        ], feed)
-      
-        if ((train_step+1) % 500 == 0):
-          print("step", (train_step+1), train_loss, r_loss, kl_loss)
-        if ((train_step+1) % 5000 == 0):
-          vae.save_json("tf_vae/vae.json")
-    print( "  end Epoch {}".format( epoch ) )
-    gen.on_epoch_end()
+            (train_loss, r_loss, kl_loss, train_step, _) = vae.sess.run([
+              vae.loss, vae.r_loss, vae.kl_loss, vae.global_step, vae.train_op
+            ], feed)
+          
+            if ((train_step+1) % 500 == 0):
+              print("step", (train_step+1), train_loss, r_loss, kl_loss)
+            if ((train_step+1) % 5000 == 0):
+              vae.save_json("tf_vae/vae.json")
+        print( "  end Epoch {}".format( epoch ) )
+        gen.on_epoch_end()
 
 # finished, final model:
-vae.save_json("tf_vae/vae.json")
+    vae.save_json("tf_vae/vae.json")
+
+if __name__ == "__main__":
+
+    import argparse
+    import malpiOptions
+
+    parser = argparse.ArgumentParser(description='Test data loader.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    malpiOptions.addMalpiOptions( parser )
+    args = parser.parse_args()
+    malpiOptions.preprocessOptions(args)
+
+    if args.test_only:
+        runTests(args)
+        exit()
+
+    main(args)
