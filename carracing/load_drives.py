@@ -114,7 +114,7 @@ class DriveDataGenerator(Sequence):
         sample_beg = index * self.batch_size
         sample_beg -= self.current_start
         sample_end = sample_beg + self.batch_size
-        #print( "getitem {} {}:{}".format( index, sample_beg, sample_end ) )
+        #print( "getitem {} {}:{} {}".format( index, sample_beg, sample_end, self.current_start ) )
         prev_len = len(self.images)
 
         if (sample_beg < len(self.images)) and (sample_end < len(self.images)):
@@ -170,7 +170,10 @@ class DriveDataGenerator(Sequence):
             self.next_dir_index += 1
 
         if self.shuffle == True:
-            images, actions = sklearn.utils.shuffle(images,actions)
+            if self.images_only:
+                images = sklearn.utils.shuffle(images)
+            else:
+                images, actions = sklearn.utils.shuffle(images,actions)
 
         images = np.array(images)
         actions = np.array(actions)
@@ -181,48 +184,50 @@ class DriveDataGenerator(Sequence):
         return images, actions
 
     def loadOneDrive( self, drive_dir, count_only=False ):
-        actions = None
-        if self.auxName is not None:
-            aux = getAuxFromMeta( drive_dir, self.auxName )
-            if aux is not None:
-                actions = loadOneAux( drive_dir, aux )
-        if actions is None:
-            actions_file = os.path.join( drive_dir, "image_actions.npy" )
-            if os.path.exists(actions_file):
-                actions = np.load(actions_file)
-            else:
-                actions_file = os.path.join( drive_dir, "image_actions.pickle" )
-                with open(actions_file,'r') as f:
-                    actions = pickle.load(f)
+        actions = []
+        if not self.images_only:
+            if self.auxName is not None:
+                aux = getAuxFromMeta( drive_dir, self.auxName )
+                if aux is not None:
+                    actions = loadOneAux( drive_dir, aux )
+            if len(actions) == 0:
+                actions_file = os.path.join( drive_dir, "image_actions.npy" )
+                if os.path.exists(actions_file):
+                    actions = np.load(actions_file)
+                else:
+                    actions_file = os.path.join( drive_dir, "image_actions.pickle" )
+                    with open(actions_file,'r') as f:
+                        actions = pickle.load(f)
 
-        categorical = True
-        if isinstance(actions[0], basestring):
-            actions = embedActions( actions )
-            actions = to_categorical( actions, num_classes=5 )
-            categorical = True
-        elif type(actions) == list:
-            actions = np.array(actions).astype('float')
-            categorical = False
-        elif type(actions) == np.ndarray:
-            actions = np.array(actions).astype('float')
-            categorical = False
-        else:
-            print("Unknown actions format: {} {} as {}".format( type(actions), actions[0], type(actions[0]) ))
+            if len(actions) > 0:
+                categorical = True
+                if isinstance(actions[0], basestring):
+                    actions = embedActions( actions )
+                    actions = to_categorical( actions, num_classes=5 )
+                    categorical = True
+                elif type(actions) == list:
+                    actions = np.array(actions).astype('float')
+                    categorical = False
+                elif type(actions) == np.ndarray:
+                    actions = np.array(actions).astype('float')
+                    categorical = False
+                else:
+                    print("Unknown actions format: {} {} as {}".format( type(actions), actions[0], type(actions[0]) ))
 
-        if self.categorical is None:
-            self.categorical = categorical
-        elif self.categorical != categorical:
-            print( "Mixed cat/non-cat action space: {}".format( drive_dir ) )
+                if self.categorical is None:
+                    self.categorical = categorical
+                elif self.categorical != categorical:
+                    print( "Mixed cat/non-cat action space: {}".format( drive_dir ) )
 
-        # Need an option for this
-        #if not self.categorical:
-        #    actions = self.addActionDiff(actions)
+                # Need an option for this
+                #if not self.categorical:
+                #    actions = self.addActionDiff(actions)
 
-        if self.num_actions is None:
-            self.num_actions = len(actions[0])
+                if self.num_actions is None:
+                    self.num_actions = len(actions[0])
 
-        if count_only:
-            return len(actions)
+            if count_only:
+                return len(actions)
 
         basename = "images_{}x{}".format( self.size[0], self.size[1] )
         im_file = os.path.join( drive_dir, basename+".npy" )
@@ -233,7 +238,10 @@ class DriveDataGenerator(Sequence):
             with open(im_file,'r') as f:
                 images = pickle.load(f)
 
-        if len(images) != len(actions):
+        if count_only:
+            return len(images)
+
+        if not self.images_only and (len(images) != len(actions)):
             print( "Data mismatch: {}".format( drive_dir ) )
             print( "   images: {}".format( images.shape ) )
             print( "  actions: {}".format( actions.shape ) )
@@ -244,6 +252,8 @@ class DriveDataGenerator(Sequence):
         'Updates indexes after each epoch'
         if self.shuffle == True:
             np.random.shuffle(self.files)
+        self.images = []
+        self.actions = []
         self.next_dir_index = 0
         self.current_start = 0
         self.images, self.actions = self.__load_next_max()
@@ -296,9 +306,11 @@ if __name__ == "__main__":
     for epoch in range(5):
         for i in range(len(gen)):
             images = gen[i]
-            #print( "Batch {}: {}".format( i, images.shape ) ) #, end='\r' )
+            print( "Batch {}: {}".format( i, images.shape ), end='\r' )
             #print( "action[0]: {}".format( actions[0] ) )
-            #sys.stdout.flush()
-            time.sleep(0.1)
+            sys.stdout.flush()
+            time.sleep(0.05)
+        print("")
+        print( "End epoch {}".format( epoch ) )
         gen.on_epoch_end()
     print("")
