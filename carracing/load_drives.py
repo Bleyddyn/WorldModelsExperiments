@@ -7,6 +7,7 @@ import argparse
 
 import numpy as np
 import sklearn
+import matplotlib.pyplot as plt
 
 from keras.utils import to_categorical
 from keras.utils import Sequence
@@ -272,7 +273,19 @@ class DriveDataGenerator(Sequence):
         return actions
 
 def runTests(args):
-    pass
+    n = 10
+    samples = []
+    gen = DriveDataGenerator(args.dirs, batch_size=1, shuffle=True, max_load=2000, image_size=(64,64), images_only=True )
+
+    input_dim = gen[0].shape
+    plt.figure(figsize=(20, 4))
+    plt.suptitle( "Generated Data", fontsize=16 )
+    for i in range(n):
+        ax = plt.subplot(2, n, i+1)
+        plt.imshow(gen[i].reshape(input_dim[1], input_dim[2], input_dim[3]))
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+    plt.show()
 
 def getOptions():
 

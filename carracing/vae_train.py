@@ -12,71 +12,30 @@ import random
 import numpy as np
 np.set_printoptions(precision=4, edgeitems=6, linewidth=100, suppress=True)
 
+from keras.callbacks import EarlyStopping
+
 from vae.vae import ConvVAE, reset_graph
-from load_data import VaeDataGenerator
 from load_drives import DriveDataGenerator
 
-def count_length_of_filelist(filelist):
-  # although this is inefficient, much faster than doing np.concatenate([giant list of blobs])..
-  N = len(filelist)
-  total_length = 0
-  for i in range(N):
-    filename = filelist[i]
-    raw_data = np.load(os.path.join("record", filename))['obs']
-    l = len(raw_data)
-    total_length += l
-    if (i % 1000 == 0):
-      print("loading file", i)
-  return  total_length
-
-def create_dataset(filelist, N=10000, M=1000): # N is 10000 episodes, M is number of timesteps
-  data = np.zeros((M*N, 64, 64, 3), dtype=np.uint8)
-  idx = 0
-  for i in range(N):
-    filename = filelist[i]
-    raw_data = np.load(os.path.join("record", filename))['obs']
-    l = len(raw_data)
-    if (idx+l) > (M*N):
-      data = data[0:idx]
-      print('premature break')
-      break
-    data[idx:idx+l] = raw_data
-    idx += l
-    if ((i+1) % 100 == 0):
-      print("loading file", i+1)
-  return data
-
 def main(args):
-    env = "malpi"
-# env = "carracing"
-
 # Hyperparameters for ConvVAE
-    z_size=32
-    batch_size=100
-    learning_rate=0.0001
-    kl_tolerance=0.5
+    z_size=args.z_size # 32
+    batch_size=args.batch_size # 100
+    learning_rate=args.learning_rate # 0.0001
+    kl_tolerance=args.kl_tolerance # 0.5
 
 # Parameters for training
     NUM_EPOCH = 100
-    DATA_DIR = "record"
+    if hasattr(args,"epochs"):
+        NUM_EPOCH = args.epochs
 
     model_save_path = "tf_vae"
     if not os.path.exists(model_save_path):
       os.makedirs(model_save_path)
 
-    if "carracing" == env:
-# load dataset from record/*. only use first 10K, sorted by filename.
-        filelist = os.listdir(DATA_DIR)
-        filelist.sort()
-        #filelist = filelist[0:10000]
-        #print("check total number of images:", count_length_of_filelist(filelist))
-
-        gen = VaeDataGenerator( filelist, batch_size=batch_size, shuffle=True, max_load=10000 )
-    elif "malpi" == env:
-        gen = DriveDataGenerator(args.dirs, image_size=(64,64), batch_size=batch_size, shuffle=True, max_load=10000, images_only=True )
+    gen = DriveDataGenerator(args.dirs, image_size=(64,64), batch_size=batch_size, shuffle=True, max_load=10000, images_only=True )
         
     num_batches = len(gen)
-    print("num_batches", num_batches)
 
     reset_graph()
 
@@ -88,9 +47,12 @@ def main(args):
                   reuse=False,
                   gpu_mode=True)
 
+    early = EarlyStopping(monitor='loss', min_delta=0.1, patience=5, verbose=True, mode='auto')
+    early.set_model(vae)
+    early.on_train_begin()
 
 # train loop:
-    print("train", "step", "loss", "recon_loss", "kl_loss")
+    print("epoch", "step", "loss", "recon_loss", "kl_loss")
     for epoch in range(NUM_EPOCH):
         for idx in range(num_batches):
             batch = gen[idx]
@@ -107,12 +69,17 @@ def main(args):
               vae.loss, vae.r_loss, vae.kl_loss, vae.global_step, vae.train_op
             ], feed)
           
-            if ((train_step+1) % 500 == 0):
-              print("step", (train_step+1), train_loss, r_loss, kl_loss)
+            #if ((train_step+1) % 500 == 0):
+            #  print("step", (train_step+1), train_loss, r_loss, kl_loss)
             if ((train_step+1) % 5000 == 0):
               vae.save_json("tf_vae/vae.json")
-        print( "  end Epoch {}".format( epoch ) )
+        print("Epoch {} {} {} {} {}".format( epoch, (train_step+1), train_loss, r_loss, kl_loss) )
         gen.on_epoch_end()
+        early.on_epoch_end(epoch, logs={"loss": train_loss})
+        if vae.stop_training:
+            break
+    early.on_train_end()
+
 
 # finished, final model:
     vae.save_json("tf_vae/vae.json")
@@ -123,6 +90,11 @@ if __name__ == "__main__":
     import malpiOptions
 
     parser = argparse.ArgumentParser(description='Test data loader.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--learning_rate', type=float, default=0.0001, help='Learning rate')
+    parser.add_argument('--z_size', type=int, default=32, help='Latent space size')
+    parser.add_argument('--batch_size', type=int, default=100, help='Mini-batch size')
+    parser.add_argument('--kl_tolerance', type=float, default=0.5, help='Max KL tolerance')
+    parser.add_argument('--epochs', type=int, default=100, help='Mini-batch size')
 
     malpiOptions.addMalpiOptions( parser )
     args = parser.parse_args()

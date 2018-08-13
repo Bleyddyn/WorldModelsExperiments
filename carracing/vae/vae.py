@@ -18,6 +18,8 @@ class ConvVAE(object):
     self.is_training = is_training
     self.kl_tolerance = kl_tolerance
     self.reuse = reuse
+    self.stop_training = False # For use by Keras callbacks
+
     with tf.variable_scope('conv_vae', reuse=self.reuse):
       if not gpu_mode:
         with tf.device('/cpu:0'):
