@@ -103,7 +103,7 @@ class DriveDataGenerator(Sequence):
         self.input_dim = None
         self.num_actions = None
         self.batch_shape = (self.batch_size,) + self.size + (3,)
-        print( "Batch shape: {}".format( self.batch_shape ) )
+        #print( "Batch shape: {}".format( self.batch_shape ) )
         self.count = self.__count()
         self.on_epoch_end()
 

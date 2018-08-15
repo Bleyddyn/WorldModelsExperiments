@@ -17,23 +17,14 @@ from keras.callbacks import EarlyStopping
 from vae.vae import ConvVAE, reset_graph
 from load_drives import DriveDataGenerator
 
-def main(args):
-# Hyperparameters for ConvVAE
-    z_size=args.z_size # 32
-    batch_size=args.batch_size # 100
-    learning_rate=args.learning_rate # 0.0001
-    kl_tolerance=args.kl_tolerance # 0.5
+def main( dirs, z_size=32, batch_size=100, learning_rate=0.0001, kl_tolerance=0.5, epochs=100, save_model=False, verbose=True ):
 
-# Parameters for training
-    NUM_EPOCH = 100
-    if hasattr(args,"epochs"):
-        NUM_EPOCH = args.epochs
+    if save_model:
+        model_save_path = "tf_vae"
+        if not os.path.exists(model_save_path):
+          os.makedirs(model_save_path)
 
-    model_save_path = "tf_vae"
-    if not os.path.exists(model_save_path):
-      os.makedirs(model_save_path)
-
-    gen = DriveDataGenerator(args.dirs, image_size=(64,64), batch_size=batch_size, shuffle=True, max_load=10000, images_only=True )
+    gen = DriveDataGenerator(dirs, image_size=(64,64), batch_size=batch_size, shuffle=True, max_load=10000, images_only=True )
         
     num_batches = len(gen)
 
@@ -47,19 +38,17 @@ def main(args):
                   reuse=False,
                   gpu_mode=True)
 
-    early = EarlyStopping(monitor='loss', min_delta=0.1, patience=5, verbose=True, mode='auto')
+    early = EarlyStopping(monitor='loss', min_delta=0.1, patience=5, verbose=verbose, mode='auto')
     early.set_model(vae)
     early.on_train_begin()
 
-# train loop:
-    print("epoch", "step", "loss", "recon_loss", "kl_loss")
-    for epoch in range(NUM_EPOCH):
+    best_loss = sys.maxsize
+
+    if verbose:
+        print("epoch", "step", "loss", "recon_loss", "kl_loss")
+    for epoch in range(epochs):
         for idx in range(num_batches):
             batch = gen[idx]
-            #print( "Batch {}: {}".format( idx, batch.shape ), end='\r' )
-            #sys.stdout.flush()
-            if batch.shape[0] == 0:
-                continue
 
             obs = batch.astype(np.float)/255.0
 
@@ -68,12 +57,15 @@ def main(args):
             (train_loss, r_loss, kl_loss, train_step, _) = vae.sess.run([
               vae.loss, vae.r_loss, vae.kl_loss, vae.global_step, vae.train_op
             ], feed)
-          
-            #if ((train_step+1) % 500 == 0):
-            #  print("step", (train_step+1), train_loss, r_loss, kl_loss)
-            if ((train_step+1) % 5000 == 0):
-              vae.save_json("tf_vae/vae.json")
-        print("Epoch {} {} {} {} {}".format( epoch, (train_step+1), train_loss, r_loss, kl_loss) )
+            
+            if train_loss < best_loss:
+                best_loss = train_loss
+
+            if save_model:
+                if ((train_step+1) % 5000 == 0):
+                  vae.save_json("tf_vae/vae.json")
+        if verbose:
+            print("Epoch {} {} {} {} {}".format( epoch, (train_step+1), train_loss, r_loss, kl_loss) )
         gen.on_epoch_end()
         early.on_epoch_end(epoch, logs={"loss": train_loss})
         if vae.stop_training:
@@ -82,7 +74,10 @@ def main(args):
 
 
 # finished, final model:
-    vae.save_json("tf_vae/vae.json")
+    if save_model:
+        vae.save_json("tf_vae/vae.json")
+
+    return best_loss
 
 if __name__ == "__main__":
 
@@ -104,4 +99,4 @@ if __name__ == "__main__":
         runTests(args)
         exit()
 
-    main(args)
+    main( args.dirs, z_size=args.z_size, batch_size=args.batch_size, learning_rate=args.learning_rate, kl_tolerance=args.kl_tolerance, epochs=args.epochs, save_model=False, verbose=True )
