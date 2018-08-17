@@ -4,6 +4,7 @@ from skopt.space import Real, Integer, Categorical, Dimension, Identity
 from skopt.utils import use_named_args
 from skopt import gp_minimize
 from skopt import dump, load
+from skopt.callbacks import CheckpointSaver
 
 from vae_train import main
 
@@ -33,8 +34,24 @@ class Holder:
                 f.write( "{}\n".format( loss ) )
         return loss
 
+def initialValues():
+    x0 = []
+    y0 = []
+    x0.append( [5.657923701050716e-07, 88, 0.6313774502819828] )
+    y0.append( 1091.47998046875 )
+    x0.append( [1.2198035331185924e-09, 32, 0.2890843291817985] )
+    y0.append( 1001.132080078125 )
+    x0.append( [2.0025058389169895e-06, 96, 0.8774315789992737] )
+    y0.append( 358.79248046875 )
+    x0.append( [1.6767382135850956e-06, 213, 0.7180939581314286] )
+    y0.append( 1114.944580078125 )
+    x0.append( [4.4046697348276916e-08, 24, 0.1651150961445776] )
+    y0.append( 971.1505737304688 )
+    return (x0, y0)
+
 def runParamTests(args):
-    pass
+    x0, y0 = initialValues()
+    print( x0 )
 
 if __name__ == "__main__":
     import argparse
@@ -73,7 +90,10 @@ if __name__ == "__main__":
         with open( log_file, 'a' ) as f:
             f.write( "#{}\n".format( datetime.datetime.now() ) )
 
-    res_gp = gp_minimize(holder, space, n_calls=args.number)
+    x0, y0 = initialValues()
+    checkpoint_saver = CheckpointSaver("./hparam_checkpoint.pkl", compress=9)
+
+    res_gp = gp_minimize(holder, space, x0=x0, y0=y0, n_calls=args.number, callback=[checkpoint_saver])
  
     print( "Best: {}".format( res_gp.fun ) )
     print("""Best parameters:
