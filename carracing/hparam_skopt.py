@@ -18,10 +18,11 @@ class Holder:
 #    @use_named_args(space)
     def __call__(self, args):
         #print( args )
-        learning_rate, batch_size, kl_tolerance = args
+        learning_rate, batch_size, kl_tolerance, optimizer = args
         arg_dict = { 'learning_rate': learning_rate,
                      'batch_size': batch_size,
-                     'kl_tolerance': kl_tolerance }
+                     'kl_tolerance': kl_tolerance,
+                     'optimizer': optimizer }
 
         self.run += 1
         print( "Run {}".format( self.run ) )
@@ -83,14 +84,14 @@ if __name__ == "__main__":
               Integer(5, max_batch, name='batch_size'),
               #Integer(32, 32, name='z_size'),
               Real(0.1, 0.9, "uniform", name='kl_tolerance'),
-              #Categorical(["RMSProp", "Adagrad", "Adadelta", "Adam"], name='optimizer'),
+              Categorical(["RMSProp", "Adagrad", "Adadelta", "Adam", "SGD"], name='optimizer'),
               ]
 
     if logging:
         with open( log_file, 'a' ) as f:
             f.write( "#{}\n".format( datetime.datetime.now() ) )
 
-    x0, y0 = initialValues()
+    x0, y0 = (None,None) # initialValues()
     checkpoint_saver = CheckpointSaver("./hparam_checkpoint.pkl", compress=9)
 
     res_gp = gp_minimize(holder, space, x0=x0, y0=y0, n_calls=args.number, callback=[checkpoint_saver])
@@ -100,7 +101,8 @@ if __name__ == "__main__":
     - learning_rate=%.6f
     - batch_size=%d
     - z_size=%d
-    - kl_tolerance=%.6f""" % (res_gp.x[0], res_gp.x[1], res_gp.x[2], res_gp.x[3] ))
+    - kl_tolerance=%.6f
+    - optimizer=%s""" % (res_gp.x[0], res_gp.x[1], res_gp.x[2], res_gp.x[3], res_gp.x[4] ))
 
     if logging:
         n = datetime.datetime.now()

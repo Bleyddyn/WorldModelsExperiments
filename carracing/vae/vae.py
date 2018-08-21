@@ -11,7 +11,7 @@ def reset_graph():
   tf.reset_default_graph()
 
 class ConvVAE(object):
-  def __init__(self, z_size=32, batch_size=1, learning_rate=0.0001, kl_tolerance=0.5, is_training=False, reuse=False, gpu_mode=False):
+  def __init__(self, z_size=32, batch_size=1, learning_rate=0.0001, kl_tolerance=0.5, is_training=False, reuse=False, gpu_mode=False, optimizer="Adam"):
     self.z_size = z_size
     self.batch_size = batch_size
     self.learning_rate = learning_rate
@@ -19,7 +19,7 @@ class ConvVAE(object):
     self.kl_tolerance = kl_tolerance
     self.reuse = reuse
     self.stop_training = False # For use by Keras callbacks
-
+    self.optim_name = optimizer
     with tf.variable_scope('conv_vae', reuse=self.reuse):
       if not gpu_mode:
         with tf.device('/cpu:0'):
@@ -29,6 +29,7 @@ class ConvVAE(object):
         tf.logging.info('Model using gpu.')
         self._build_graph()
     self._init_session()
+
   def _build_graph(self):
     self.g = tf.Graph()
     with self.g.as_default():
@@ -82,7 +83,16 @@ class ConvVAE(object):
         
         # training
         self.lr = tf.Variable(self.learning_rate, trainable=False)
-        self.optimizer = tf.train.AdamOptimizer(self.lr)
+        if self.optim_name == "RMSProp":
+            self.optimizer = tf.train.RMSPropOptimizer(self.lr)
+        elif self.optim_name == "Adagrad":
+            self.optimizer = tf.train.AdagradOptimizer(self.lr)
+        elif self.optim_name == "Adadelta":
+            self.optimizer = tf.train.AdadeltaOptimizer(self.lr)
+        elif self.optim_name ==  "Adam":
+            self.optimizer = tf.train.AdamOptimizer(self.lr)
+        elif self.optim_name ==  "SGD":
+            self.optimizer = tf.train.GradientDescentOptimizer(self.lr)
         grads = self.optimizer.compute_gradients(self.loss) # can potentially clip gradients here.
 
         self.train_op = self.optimizer.apply_gradients(

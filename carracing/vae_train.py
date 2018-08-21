@@ -17,7 +17,7 @@ from keras.callbacks import EarlyStopping
 from vae.vae import ConvVAE, reset_graph
 from load_drives import DriveDataGenerator
 
-def main( dirs, z_size=32, batch_size=100, learning_rate=0.0001, kl_tolerance=0.5, epochs=100, save_model=False, verbose=True ):
+def main( dirs, z_size=32, batch_size=100, learning_rate=0.0001, kl_tolerance=0.5, epochs=100, save_model=False, verbose=True, optimizer="Adam" ):
 
     if save_model:
         model_save_path = "tf_vae"
@@ -36,7 +36,8 @@ def main( dirs, z_size=32, batch_size=100, learning_rate=0.0001, kl_tolerance=0.
                   kl_tolerance=kl_tolerance,
                   is_training=True,
                   reuse=False,
-                  gpu_mode=True)
+                  gpu_mode=True,
+                  optimizer=optimizer)
 
     early = EarlyStopping(monitor='loss', min_delta=0.1, patience=5, verbose=verbose, mode='auto')
     early.set_model(vae)
