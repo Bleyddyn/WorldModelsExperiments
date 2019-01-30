@@ -5,6 +5,7 @@ import glob
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from load_drives import DriveDataGenerator
 
 model_source = "Unknown"
 try:
@@ -90,11 +91,12 @@ def sample_vae(args):
     samples = vae.decoder.predict(z)
     input_dim = samples.shape[1:]
 
+
     n = args.count
     plt.figure(figsize=(20, 4))
     plt.title('VAE samples')
     for i in range(n):
-        ax = plt.subplot(2, n, i+1)
+        ax = plt.subplot(3, n, i+1)
         plt.imshow(samples[i].reshape(input_dim[0], input_dim[1], input_dim[2]))
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
@@ -105,7 +107,7 @@ def sample_vae(args):
 def sample_vae2(args):
     """ For vae from https://github.com/hardmaru/WorldModelsExperiments.git
     """
-    z_size=32
+    z_size=64 # This needs to match the size of the trained vae
     batch_size=args.count
     learning_rate=0.0001
     kl_tolerance=0.5
@@ -126,14 +128,37 @@ def sample_vae2(args):
     samples = vae.decode(z)
     input_dim = samples.shape[1:]
 
+    gen = DriveDataGenerator(args.dirs, image_size=(64,64), batch_size=args.count, shuffle=True, max_load=10000, images_only=True )
+    orig = gen[0].astype(np.float) / 255.0
+    #mu, logvar = vae.encode_mu_logvar(orig)
+    #recon = vae.decode( mu )
+    recon = vae.decode( vae.encode(orig) )
+
     n = args.count
-    plt.figure(figsize=(20, 4))
+    plt.figure(figsize=(20, 6), tight_layout=False)
     plt.title('VAE samples')
     for i in range(n):
-        ax = plt.subplot(2, n, i+1)
+        ax = plt.subplot(3, n, i+1)
         plt.imshow(samples[i].reshape(input_dim[0], input_dim[1], input_dim[2]))
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
+        if 0 == i:
+            ax.set_title("Random")
+
+    for i in range(n):
+        ax = plt.subplot(3, n, n+i+1)
+        plt.imshow(orig[i].reshape(input_dim[0], input_dim[1], input_dim[2]))
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        if 0 == i:
+            ax.set_title("Real")
+
+        ax = plt.subplot(3, n, (2*n)+i+1)
+        plt.imshow(recon[i].reshape(input_dim[0], input_dim[1], input_dim[2]))
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        if 0 == i:
+            ax.set_title("Reconstructed")
 
     plt.savefig( "samples_vae.png" )
     plt.show()
@@ -164,12 +189,17 @@ def main(args):
             print( "   logvar: {} {}".format( data['logvar'].shape, len(data['logvar']) ) )
 
 if __name__ == "__main__":
-  parser = argparse.ArgumentParser(description=('Sample one or more stages of training'))
-  parser.add_argument('--data', action="store_true", default=False, help='Generate image samples from generated data')
-  parser.add_argument('--vae', action="store_true", default=False, help='Generate image samples from a trained VAE')
-  parser.add_argument('--series', action="store_true", default=False, help='Output stats from the series data')
-  parser.add_argument('--count', type=int, default=10, help='How many samples to generate')
+    import argparse
+    import malpiOptions
 
-  args = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Sample one or more stages of training.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--data', action="store_true", default=False, help='Generate image samples from generated data')
+    parser.add_argument('--vae', action="store_true", default=False, help='Generate image samples from a trained VAE')
+    parser.add_argument('--series', action="store_true", default=False, help='Output stats from the series data')
+    parser.add_argument('--count', type=int, default=10, help='How many samples to generate')
 
-  main(args)
+    malpiOptions.addMalpiOptions( parser )
+    args = parser.parse_args()
+    malpiOptions.preprocessOptions(args)
+
+    main(args)

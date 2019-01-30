@@ -46,7 +46,7 @@ def main( dirs, z_size=32, batch_size=100, learning_rate=0.0001, kl_tolerance=0.
     best_loss = sys.maxsize
 
     if verbose:
-        print("epoch", "step", "loss", "recon_loss", "kl_loss")
+        print("epoch\tstep\tloss\trecon_loss\tkl_loss")
     for epoch in range(epochs):
         for idx in range(num_batches):
             batch = gen[idx]
@@ -66,7 +66,7 @@ def main( dirs, z_size=32, batch_size=100, learning_rate=0.0001, kl_tolerance=0.
                 if ((train_step+1) % 5000 == 0):
                   vae.save_json("tf_vae/vae.json")
         if verbose:
-            print("Epoch {} {} {} {} {}".format( epoch, (train_step+1), train_loss, r_loss, kl_loss) )
+            print("{} of {}\t{}\t{:.2f}\t{:.2f}\t{:.2f}".format( epoch, epochs, (train_step+1), train_loss, r_loss, kl_loss) )
         gen.on_epoch_end()
         early.on_epoch_end(epoch, logs={"loss": train_loss})
         if vae.stop_training:
