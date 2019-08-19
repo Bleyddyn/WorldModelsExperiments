@@ -75,11 +75,11 @@ Next, we pre-process collected data using pre-trained VAE by running:
 
 A new dataset will be created in `series`. After this is recorded, train the MDN-RNN by running:
 
-`train rnn using python rnn_train.py`
+`python rnn_train.py`
 
 This will produce a model in `tf_rnn/rnn.json` and also `initial_z.json`.
 
-You must now copy copy vae.json, initial_z.json and rnn.json over to `tf_models` directory and overwrite previous files if they were there.
+You must now copy vae.json, initial_z.json and rnn.json over to `tf_models` directory and overwrite previous files if they were there.
 
 Now on a 64-core CPU machine, run the CMA-ES based training:
 
